@@ -36,7 +36,57 @@ public class BlackStorm extends Driver {
     // ---------------- compute target speed ----------------------
     
     // very basic behaviour. stay safe
-    double targetSpeed = 360;
+    double targetSpeed = 250;
+    
+    if (m.trackPosition > 0.8) {
+      double distanceRight = m.trackEdgeSensors[18];
+      action.steering += (4.0 - distanceRight) * 0.05;
+    } else if (m.trackPosition < -0.8) {
+      double distanceLeft = m.trackEdgeSensors[0];
+      action.steering -= (4.0 - distanceLeft) * 0.05;
+    } // end of if
+    
+    
+    // ------------------- Kurvenerkennung ------------------------ 
+    /* Vor einer Kurve wird die Geschwindkeit verringert, damit
+    * das Auto nicht von der Rennstrecke abkommt. 
+    */
+    
+    /*
+    // zweite Variante
+    double maxDist = 0;
+    for (int i = 0; i < 18; i++) {
+    maxDist = Math.max(maxDist, m.trackEdgeSensors[i]);
+    } // end of for
+    targetSpeed = maxDist; 
+    */
+    
+    
+    double distanceAhead = m.trackEdgeSensors[9];
+    double distanceAheadRight = m.trackEdgeSensors[10];
+    double distanceAheadLeft = m.trackEdgeSensors[8];
+    
+    if (distanceAhead < 70 && (distanceAheadRight < 60)) {
+      m.trackPosition = -0.1;
+      targetSpeed = 130;  
+      action.brake = Math.min((m.speed - targetSpeed) / 10, 1);     
+    } else {
+      targetSpeed = 360;
+    } // end of if-else
+    
+    if (distanceAhead < 70 && distanceAheadLeft < 60) {
+      m.trackPosition = 0.1;
+      targetSpeed = 130;  
+      action.brake = Math.min((m.speed - targetSpeed) / 10, 1);     
+    } else {
+      targetSpeed = 360;
+    } // end of if-else
+    /*
+    if (distanceAhead < 40) {
+    targetSpeed = 100;
+    action.brake = Math.min((m.speed - targetSpeed) / 10, 1);
+    } // end of if
+    */
     
     /*
     * ----------------------- control velocity --------------------
@@ -52,7 +102,6 @@ public class BlackStorm extends Driver {
     
     // ------------------- control gear ------------------------
     
-    // go in second gear
     
     if (m.speed < 60) {
       action.gear = 1;
@@ -63,22 +112,31 @@ public class BlackStorm extends Driver {
     else if (m.speed < 150) {
       action.gear = 3;  
     } // end of if
-    else if (m.speed < 180) {
+    else if (m.speed < 190) {       
       action.gear = 4;
     } // end of if  
-    else if (m.speed < 240) {
+    else if (m.speed < 240) {       
       action.gear = 5;
     } // end of if
-    else if (m.speed < 280) {
+    else if (m.speed < 280) {     
       action.gear = 6;
     } else {
-      action.gear = 6;
+      action.gear = m.gear;
     } // end of if-else
-
-     // ------------------- Kurvenerkennung ------------------------ 
-       /* Vor einer Kurve wird die Geschwindkeit verringert, damit
-        * das Auto nicht von der Rennstrecke abkommt. 
-        */
+    
+    
+    /*
+    // zweite Möglichkeit zum Hochschalten
+    if (action.gear < 6 && m.rpm > 8000 && action.accelerate > 0) {
+    action.gear = m.gear + 1;
+    } // end of if
+    else if (action.gear > 1 && m.rpm < 3000 || action.brake > 0 && action.gear > 1) {
+    action.gear = m.gear - 1;;
+    } else {
+    action.gear = m.gear;
+    } // end of if-else
+    */
+    
     
     
     /*
@@ -93,11 +151,34 @@ public class BlackStorm extends Driver {
     
     // avoid to come too close to the edges
     if (distanceLeft < 3.0) {
-      action.steering -= (5.0 - distanceLeft) * 0.05;
+      action.steering -= (3.0 - distanceLeft) * 0.05;
     }
     if (distanceRight < 3.0) {
-      action.steering += (5.0 - distanceRight) * 0.05;
+      action.steering += (3.0 - distanceRight) * 0.05;
     }
+    
+    
+    // Beta Phase Rausfahren bei einem Crash
+    if ((distanceAhead < 1 && distanceAheadRight < 1) && (m.trackPosition > 1 || m.trackPosition < -1)) {
+      targetSpeed = 10;
+      if (m.speed < 2) {
+        action.gear = -1;
+        action.steering = m.angleToTrackAxis * 0.75;
+        //double distanceRight = m.trackEdgeSensors[18];
+        action.steering -= (4.0 - distanceRight) * 0.05;
+      } // end of if 
+    } // end of if 
+    
+    if ((distanceAhead < 1 || distanceAheadLeft < 1) && (m.trackPosition > 1 || m.trackPosition > -1)) {
+      targetSpeed = 10;
+      if (m.speed < 2) {
+        action.gear = -1;
+        action.steering = m.angleToTrackAxis * 0.75;
+        //double distanceLeft = m.trackEdgeSensors[0];
+        action.steering += (4.0 - distanceLeft) * 0.05;  
+      } // end of if
+    } // end of if    
+    
     
     // return the action
     return action;
